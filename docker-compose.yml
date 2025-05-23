@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine # Using a specific version of postgres with alpine for smaller size
+    container_name: etl_postgres_db
+    environment:
+      POSTGRES_USER: etl_user
+      POSTGRES_PASSWORD: etl_password
+      POSTGRES_DB: etl_data
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432" # Expose port for potential local connection, not strictly needed for app-to-db comms
+    restart: unless-stopped
+
+  app:
+    build:
+      context: . # Build from the Dockerfile in the current directory
+    container_name: etl_app
+    depends_on:
+      - db
+    volumes:
+      - .:/app # Mount current directory to /app in container for live code changes
+    environment:
+      # Example environment variables for database connection (Python code doesn't use these yet)
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: etl_data
+      DB_USER: etl_user
+      DB_PASSWORD: etl_password
+      # PYTHONUNBUFFERED is good for seeing logs immediately from Python within Docker
+      PYTHONUNBUFFERED: 1
+    restart: unless-stopped
+
+volumes:
+  pgdata: # Defines the named volume for PostgreSQL data persistence

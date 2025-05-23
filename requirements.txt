@@ -1,1 +1,2 @@
 pydantic
+psycopg2-binary

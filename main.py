@@ -150,4 +150,3 @@ if __name__ == "__main__":
     print("Running ETL Pipeline with PostgreSQL Integration...")
     asyncio.run(main_async())
     print("ETL Pipeline finished.")
-```

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15-alpine # Using a specific version of postgres with alpine for smaller size
@@ -12,7 +10,6 @@ services:
       - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432" # Expose port for potential local connection, not strictly needed for app-to-db comms
-    restart: unless-stopped
 
   app:
     build:
@@ -31,7 +28,6 @@ services:
       DB_PASSWORD: etl_password
       # PYTHONUNBUFFERED is good for seeing logs immediately from Python within Docker
       PYTHONUNBUFFERED: 1
-    restart: unless-stopped
 
 volumes:
   pgdata: # Defines the named volume for PostgreSQL data persistence

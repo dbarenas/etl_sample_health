@@ -1,0 +1,52 @@
+[
+  {
+    "id": "p1",
+    "name": "Alice Wonderland",
+    "dob": "1990-01-01",
+    "gender": "Female",
+    "address": "123 Main St",
+    "email": "alice@example.com",
+    "phone": "555-1234",
+    "sex": "Female"
+  },
+  {
+    "id": "p2",
+    "name": "Bob The Builder",
+    "dob": "03/15/1985",
+    "gender": "Male",
+    "address": "456 Side St",
+    "email": "bob@",
+    "phone": "555-5678",
+    "sex": "Male"
+  },
+  {
+    "id": "p3",
+    "name": "Charlie Brown",
+    "dob": "1950-07-30",
+    "gender": "MALE",
+    "address": "789 Other St",
+    "email": "charlie@goodgrief.com",
+    "phone": "invalid-phone",
+    "sex": "male"
+  },
+  {
+    "id": "p4",
+    "name": "Diana Prince",
+    "dob": "2000-01-01",
+    "gender": "Non-binary",
+    "address": "N/A",
+    "email": "diana@example.com",
+    "phone": "1234567890",
+    "sex": "Non-binary"
+  },
+  {
+    "id": "p5",
+    "name": "Invalid Date Man",
+    "dob": "1990/01/01",
+    "gender": "Male",
+    "address": "Error Lane",
+    "email": "error@example.com",
+    "phone": "555-0000",
+    "sex": "Male"
+  }
+]

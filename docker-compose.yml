@@ -21,9 +21,10 @@ services:
     depends_on:
       - db
     volumes:
-      - .:/app # Mount current directory to /app in container for live code changes
+      - .:/app # Mount current directory to /app in container
+      - ./dbt_project:/app/dbt_project # Mount the dbt_project directory
     environment:
-      # Example environment variables for database connection (Python code doesn't use these yet)
+      # Environment variables for database connection used by Python ETL
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: etl_data
@@ -31,6 +32,9 @@ services:
       DB_PASSWORD: etl_password
       # PYTHONUNBUFFERED is good for seeing logs immediately from Python within Docker
       PYTHONUNBUFFERED: 1
+      # DBT Environment Variables
+      DBT_PROFILES_DIR: "/app/dbt_project" # Tells dbt where to find profiles.yml
+      DBT_PROJECT_DIR: "/app/dbt_project" # Explicitly set project dir for dbt commands
     restart: unless-stopped
 
 volumes:

@@ -1,0 +1,60 @@
+# dbt_project/models/sources/sources.yml
+version: 2
+
+sources:
+  - name: public # Name of the source schema (where ETL loads data)
+    description: "Source schema from the ETL process containing raw patient and device data."
+    database: etl_data # Optional: The database name, inferred from profile if not set.
+                      # Explicitly adding for clarity, matches 'dbname' in profiles.yml.
+    schema: public # Optional: The schema name, inferred if same as 'name'.
+                   # Explicitly adding for clarity.
+    tables:
+      - name: patients
+        description: "Raw patient demographic data loaded by the ETL pipeline."
+        columns:
+          - name: id
+            description: "Primary key for patients."
+            tests:
+              - unique
+              - not_null
+          - name: name
+            description: "Patient's full name."
+          - name: dob
+            description: "Patient's date of birth."
+          - name: email
+            description: "Patient's email address."
+            # Could add a dbt-utils email format test if dbt-utils were installed
+            # tests:
+            #   - dbt_utils.validate_email_format # Example
+
+      - name: device_readings
+        description: "Raw device reading data loaded by the ETL pipeline."
+        columns:
+          - name: id
+            description: "Primary key for device readings."
+            tests:
+              - unique
+              - not_null
+          - name: patient_id
+            description: "Foreign key referencing the patients table."
+            tests:
+              - not_null
+              # Test for referential integrity (if patient_id must exist in patients.id)
+              # This requires the source 'patients' to also be defined or use a more complex test.
+              # For simplicity, we'll rely on FK constraints at DB level for now,
+              # but dbt relationship tests are powerful.
+              # Example:
+              # - relationships:
+              #     to: source('public', 'patients')
+              #     field: id
+          - name: timestamp
+            description: "Timestamp of the reading."
+            tests:
+              - not_null
+          - name: glucose
+            description: "Glucose reading."
+          - name: systolic_bp
+            description: "Systolic blood pressure reading."
+          - name: diastolic_bp
+            description: "Diastolic blood pressure reading."
+          # Add other columns as needed (e.g., weight)

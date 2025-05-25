@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-This project implements an ETL (Extract, Transform, Load) pipeline designed to process patient demographic data and medical device readings. It extracts data from JSON and CSV files, transforms it according to defined schemas and validation rules, and then loads the processed data and any identified errors into a PostgreSQL database. The pipeline is built with Python 3.11+, uses Pydantic for data validation, and can be containerized using Docker. A dbt (Data Build Tool) project is included for transforming data within the data warehouse and calculating derived analytics.
+This project implements an ETL (Extract, Transform, Load) pipeline designed to process patient demographic data and medical device readings. It extracts data from JSON and CSV files, transforms it according to defined schemas and validation rules, and then loads the processed data and any identified errors into a PostgreSQL database. The pipeline is built with Python 3.11+, uses Pydantic for data validation, and can be containerized using Docker. A dbt (Data Build Tool) project is included for transforming data within the data warehouse. Finally, a FastAPI application provides a RESTful API to interact with the processed data.
 
 ## 2. Features Implemented
 
@@ -36,6 +36,11 @@ This project implements an ETL (Extract, Transform, Load) pipeline designed to p
     *   **Source Definition**: Defines raw tables loaded by Python ETL as dbt sources.
     *   **Staging Models**: Cleans and prepares source data (e.g., `stg_patients`, `stg_device_readings`). Materialized as views.
     *   **Mart Models**: Creates analytical models, such as `patient_biometric_summary`, which calculates MIN/MAX/AVG for key biometrics per patient. Materialized as tables.
+*   **FastAPI Application (API)**:
+    *   Provides RESTful endpoints to interact with patient data, device readings, and biometric summaries.
+    *   Uses SQLAlchemy ORM for database interaction and Pydantic for request/response validation.
+    *   Includes CRUD-like operations for device readings (upsert, delete).
+    *   Offers paginated responses for lists of resources.
 *   **Asynchronous Pipeline (Python ETL)**:
     *   The main pipeline (`main.py`) orchestrates extraction, transformation, and loading steps asynchronously using `asyncio` and `run_in_executor` for potentially blocking operations.
 *   **Database Utilities**:
@@ -43,11 +48,12 @@ This project implements an ETL (Extract, Transform, Load) pipeline designed to p
 *   **Configuration**:
     *   File paths for sample data are defined in `main.py`.
     *   Database connection parameters are primarily sourced from environment variables (defaults provided in `etl/db_utils.py` and `docker-compose.yml`).
-    *   Pydantic models in `etl/schemas.py` centralize data validation rules.
+    *   Pydantic models in `etl/schemas.py` (for ETL) and `api/models.py` (for API) centralize data validation rules.
     *   DBT project configuration in `dbt_project/dbt_project.yml` and `dbt_project/profiles.yml`.
 *   **Dockerization**:
-    *   `Dockerfile` provided to build a container image for the application, including system dependencies for `psycopg2` and `dbt-postgres`.
-    *   `docker-compose.yml` for easy multi-container setup (ETL app + PostgreSQL database).
+    *   `Dockerfile` (root) for the Python ETL and dbt CLI application.
+    *   `api/Dockerfile` for the FastAPI application.
+    *   `docker-compose.yml` for easy multi-container setup (ETL app, API app, PostgreSQL database).
 *   **Unit Tests (Python)**:
     *   Comprehensive unit tests for extraction, transformation, and mocked loading modules (`tests/`).
 
@@ -55,21 +61,25 @@ This project implements an ETL (Extract, Transform, Load) pipeline designed to p
 
 ```
 .
-├── Dockerfile              # For building the Docker container
-├── docker-compose.yml      # For Docker Compose setup (app & database)
-├── main.py                 # Main script to run the ETL pipeline
-├── requirements.txt        # Python dependencies (pydantic, psycopg2-binary, dbt-postgres)
+├── Dockerfile              # For building the Python ETL & DBT CLI container
+├── docker-compose.yml      # For Docker Compose setup (ETL app, API app & database)
+├── main.py                 # Main script to run the Python ETL pipeline
+├── requirements.txt        # Python dependencies for ETL, DBT, and API
 ├── README.md               # This file
+├── api/                    # FastAPI application
+│   ├── Dockerfile          # Dockerfile for the API service
+│   ├── main.py             # FastAPI app instance and root endpoint
+│   ├── database.py         # SQLAlchemy setup and ORM models for API
+│   ├── models.py           # Pydantic schemas for API requests/responses
+│   ├── crud.py             # CRUD operations for the API
+│   ├── dependencies.py     # API dependencies (e.g., get_db session) - (currently empty but structured)
+│   └── routers/            # API endpoint routers
+│       ├── __init__.py
+│       ├── patients.py     # Patient and patient-specific biometric summary routes
+│       └── biometrics.py   # Device reading and general biometric analytics routes
 ├── data/                   # Directory for input data files (created by main.py if not present)
 │   ├── patients.json       # Sample patient data (generated by main.py)
 │   └── device_readings.csv # Sample device readings data (generated by main.py)
-├── etl/                    # Core Python ETL logic package
-│   ├── __init__.py
-│   ├── db_utils.py         # Database connection and DDL utilities
-│   ├── extraction.py       # Data extraction functions
-│   ├── loading.py          # Data loading functions (to PostgreSQL)
-│   ├── schemas.py          # Pydantic schema definitions
-│   └── transformation.py   # Data transformation and validation functions
 ├── dbt_project/            # DBT project for transformations and analytics
 │   ├── dbt_project.yml     # DBT project configuration
 │   ├── profiles.yml        # DBT connection profile (for Docker environment)
@@ -79,7 +89,14 @@ This project implements an ETL (Extract, Transform, Load) pipeline designed to p
 │   │   └── marts/          # Mart models (e.g., patient_biometric_summary.sql)
 │   ├── seeds/              # Seed files (CSV for dbt seed) - currently empty
 │   └── tests/              # DBT custom data tests - currently empty
-└── tests/                  # Python unit tests
+├── etl/                    # Core Python ETL logic package
+│   ├── __init__.py
+│   ├── db_utils.py         # Database connection and DDL utilities
+│   ├── extraction.py       # Data extraction functions
+│   ├── loading.py          # Data loading functions (to PostgreSQL)
+│   ├── schemas.py          # Pydantic schema definitions for ETL
+│   └── transformation.py   # Data transformation and validation functions
+└── tests/                  # Python unit tests for ETL
     ├── __init__.py
     ├── test_extraction.py
     ├── test_transformation.py
@@ -149,10 +166,10 @@ DBT models (e.g., `patient_biometric_summary`) will be created in the same datab
     pip install -r requirements.txt
     ```
 
-## 6. How to Run the Pipeline
+## 6. How to Run the Pipeline & Services
 
-### Directly with Python
-*(Note: This requires a PostgreSQL instance to be running and accessible, with connection details matching environment variables or defaults in `etl/db_utils.py`. For simplicity, using Docker Compose is recommended.)*
+### Directly with Python (ETL Only)
+*(Note: This runs only the Python ETL part. It requires a PostgreSQL instance to be running and accessible, with connection details matching environment variables or defaults in `etl/db_utils.py`. For the full system including API and dbt, using Docker Compose is recommended.)*
 
 1.  Ensure you have completed the setup instructions.
 2.  Set environment variables for your database if they differ from defaults (e.g., `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`).
@@ -160,44 +177,38 @@ DBT models (e.g., `patient_biometric_summary`) will be created in the same datab
     ```bash
     python main.py
     ```
-4.  The script will:
-    *   Attempt to connect to the PostgreSQL database and initialize the schema.
-    *   Create sample `data/patients.json` and `data/device_readings.csv` files if they don't already exist.
-    *   Execute the ETL pipeline (Extract, Transform, Load to DB).
-    *   Print logs to the console, including summaries of extracted, processed, and error records, and total execution time.
-    *(DBT models are not run by this script. See Section 8 for running dbt.)*
+4.  The script will execute the Python ETL pipeline. (DBT models are not run by this script. See Section 8 for running dbt.)
 
-### Using Docker (Standalone Container - Not Recommended for DB Interaction)
+### Using Docker Compose (Recommended for Full System)
 
-Running the app container standalone without Docker Compose is possible but not ideal if it needs to connect to a database (which would typically be another container or an external service). For this project with DB and dbt integration, use Docker Compose.
-
-### Using Docker Compose (Recommended for Local Development)
-
-This project includes a `docker-compose.yml` file that sets up both the ETL application container and a PostgreSQL database container. This is the recommended way to run the application locally.
+This project includes a `docker-compose.yml` file that sets up the Python ETL application (`app` service), the FastAPI application (`api` service), and a PostgreSQL database (`db` service). This is the recommended way to run the full application locally.
 
 1.  **Ensure Docker Compose is installed.** (It's usually included with Docker Desktop).
-2.  **Build and start the services**:
+2.  **Build and start all services**:
     Navigate to the project root directory and run:
     ```bash
-    docker-compose up --build
+    docker-compose up --build -d
     ```
-    The `--build` flag ensures the image is rebuilt if there are changes to the `Dockerfile` or application code.
-    This command will start both the PostgreSQL database and the ETL application. The ETL application (`app` service) will run `python main.py` to load initial data.
-    *(DBT models are not run automatically. See Section 8 for running dbt commands inside the container.)*
+    The `--build` flag ensures images are rebuilt if there are changes. The `-d` flag runs services in detached mode.
+    This command will:
+    *   Start the PostgreSQL database (`db` service).
+    *   Start the Python ETL application (`app` service), which will run `python main.py` to load initial data.
+    *   Start the FastAPI application (`api` service). The API will be available at `http://localhost:8000`.
 
 3.  **To stop the services**:
-    Press `Ctrl+C` in the terminal where `docker-compose up` is running, then run:
     ```bash
     docker-compose down
     ```
     This will stop and remove the containers. The PostgreSQL data will persist in a Docker volume (`pgdata`) unless the volume is explicitly removed.
 
-**Note on Database Integration**:
-This Docker Compose setup includes a PostgreSQL database, and the Python ETL scripts (`etl/loading.py`) load transformed data directly into this database. The `psycopg2-binary` library is used for this interaction. Environment variables for database connection are configured in `docker-compose.yml` for the `app` service and used by the Python application.
+**Note on Service Interaction**:
+- The Python ETL (`app` service) loads data into the PostgreSQL `db` service.
+- The dbt CLI (run within the `app` service container) transforms data within the `db` service.
+- The FastAPI application (`api` service) reads from and writes to the `db` service.
 
 ## 7. Example of Pipeline Execution (Python ETL)
 
-When you run `python main.py` (preferably via `docker-compose up`), you will see output similar to the following for the Python ETL part (counts and specific messages may vary based on sample data and run conditions):
+When the `app` service starts (e.g., via `docker-compose up`), you will see output similar to the following for the Python ETL part (counts and specific messages may vary based on sample data and run conditions):
 
 ```
 Running ETL Pipeline with PostgreSQL Integration...
@@ -233,103 +244,164 @@ Database Loading Errors (Error Records): [...] (List of errors if any)
 Database connection closed.
 ETL Pipeline finished.
 ```
-*(A, B, C, A', B', C', X, Y, Z, T are placeholders for actual numbers from an execution run. A' might differ from A if some valid patients fail DB insertion due to constraints not caught in transformation.)*
+*(A, B, C, A', B', C', X, Y, Z, T are placeholders for actual numbers from an execution run.)*
 
 ### Verifying Data in PostgreSQL (After Python ETL)
 
-After the Python ETL pipeline runs (ideally via `docker-compose up`), you can connect to the PostgreSQL database to verify that data has been loaded into the source tables (`patients`, `device_readings`, `error_records`).
+After the Python ETL pipeline runs, you can connect to the PostgreSQL database to verify that data has been loaded into the source tables (`patients`, `device_readings`, `error_records`).
 
 1.  **Connect to the PostgreSQL container**:
     Open a new terminal and run:
     ```bash
     docker-compose exec db psql -U etl_user -d etl_data
     ```
-    You will be prompted for the password, which is `etl_password` (as defined in `docker-compose.yml`).
+    Password: `etl_password`.
 
 2.  **Example SQL Queries**:
-    Once connected via `psql`, you can run queries like:
     ```sql
-    -- Count records in each table
     SELECT COUNT(*) FROM patients;
     SELECT COUNT(*) FROM device_readings;
     SELECT COUNT(*) FROM error_records;
-
-    -- View some sample data
-    SELECT * FROM patients LIMIT 5;
-    SELECT * FROM device_readings LIMIT 5;
-    SELECT * FROM error_records LIMIT 5;
     ```
 
 ## 8. DBT (Data Build Tool) Project
 
-This project includes a DBT project located in the `dbt_project/` directory. DBT is used for transforming data within the data warehouse (PostgreSQL in this case) and calculating derived analytics *after* the Python ETL has loaded the source data.
+This project includes a DBT project located in the `dbt_project/` directory for transforming data within PostgreSQL *after* the Python ETL has loaded the source data.
 
 ### 8.1 Purpose
-- To model data from the source tables (`patients`, `device_readings`) loaded by the ETL pipeline.
-- To calculate derived metrics, such as biometric summaries (min, max, averages) for each patient.
-- To create new tables/views in the database that can be used for analytics, reporting, or by a potential future API.
+- Model data from source tables (`patients`, `device_readings`).
+- Calculate derived metrics, such as biometric summaries per patient.
+- Create new tables/views for analytics, reporting, or API use.
 
 ### 8.2 Structure
-The `dbt_project/` directory follows standard DBT conventions:
-- `dbt_project.yml`: Main DBT project configuration file.
-- `profiles.yml`: Defines connection profiles to the database (configured to connect to the `db` service via Docker).
-- `models/`: Contains all DBT models.
-  - `models/sources/sources.yml`: Defines sources from the `public` schema (e.g., `patients`, `device_readings`).
-  - `models/staging/`: Contains staging models (e.g., `stg_patients.sql`, `stg_device_readings.sql`) for basic cleaning and selection from sources. These are materialized as views.
-  - `models/marts/`: Contains dimensional or analytical models.
-    - `patient_biometric_summary.sql`: Calculates MIN/MAX/AVG for glucose, blood pressure, and weight per patient. This is materialized as a table.
+- `dbt_project.yml`: Main DBT project configuration.
+- `profiles.yml`: Connection profiles (configured for Docker).
+- `models/`:
+  - `sources/sources.yml`: Defines dbt sources.
+  - `staging/`: Staging models (e.g., `stg_patients.sql`).
+  - `marts/`: Analytical models (e.g., `patient_biometric_summary.sql`).
 
 ### 8.3 Running DBT Commands
 
-DBT commands are run from within the `app` container, which has `dbt-postgres` installed and the `dbt_project` directory mounted.
+DBT commands are run from within the `app` container.
 
-1.  **Ensure Docker Compose services are running**:
-    If not already running from Section 6:
-    ```bash
-    docker-compose up -d --build app db 
-    ```
-    (Using `-d` to run in detached mode if you want your terminal back, or omit for logs if running for the first time to see Python ETL output).
-
+1.  **Ensure Docker Compose services are running** (as per Section 6).
 2.  **Exec into the `app` container**:
-    Open a new terminal and run:
     ```bash
     docker-compose exec app /bin/bash
     ```
-
-3.  **Navigate to the DBT project directory (optional but good practice inside container)**:
-    The environment variables `DBT_PROJECT_DIR="/app/dbt_project"` and `DBT_PROFILES_DIR="/app/dbt_project"` are set in `docker-compose.yml`, so dbt CLI should automatically pick up the project and profile configurations. However, changing to the directory can be clearer:
+3.  **Navigate to the DBT project directory (optional but good practice)**:
     ```bash
-    cd dbt_project
+    cd dbt_project 
     ```
-    If you choose not to `cd`, dbt commands should still work from `/app` due to the environment variables.
+    (DBT_PROJECT_DIR and DBT_PROFILES_DIR are set, so commands work from `/app` too).
 
 4.  **Test DBT Connection (optional)**:
-    From within the container (e.g., in `/app/dbt_project` or `/app`):
     ```bash
     dbt debug 
     ```
-    This command checks your `dbt_project.yml` and `profiles.yml` for connection validity. You should see "Connection test: OK connection ok".
-
 5.  **Run DBT Models**:
-    To execute all models and create/update tables/views in your database:
     ```bash
     dbt run
     ```
-    If you want to run models for a specific subdirectory:
-    ```bash
-    dbt run --select staging
-    dbt run --select marts
-    ```
-
-6.  **Run DBT Tests (Data Quality Tests)**:
-    DBT tests are defined in YAML files (e.g., `sources.yml` for source data, or separate YAML files for models). The basic tests `unique` and `not_null` are defined in `models/sources/sources.yml`.
+6.  **Run DBT Tests**:
     ```bash
     dbt test
     ```
+After `dbt run`, the `patient_biometric_summary` table will be created/updated. Query it via `psql` (e.g., `SELECT * FROM patient_biometric_summary LIMIT 5;`).
 
-After running `dbt run`, the `patient_biometric_summary` table (and any other models) will be created/updated in the `public` schema (or the schema defined in your DBT profile/project config) of your `etl_data` PostgreSQL database. You can then query these using `psql` as shown in the "Verifying Data in PostgreSQL" section (e.g., `SELECT * FROM patient_biometric_summary LIMIT 5;`).
+## 9. FastAPI Application (API)
 
-## 9. Running Unit Tests (Python)
+The project includes a RESTful API built with FastAPI, located in the `api/` directory. This API allows interaction with the patient and device biometric data stored in the PostgreSQL database, including data generated by the ETL process and DBT transformations.
+
+### 9.1 Running the API
+
+The API service is managed by Docker Compose.
+
+1.  **Start all services (including the API)**:
+    If not already running from Section 6:
+    ```bash
+    docker-compose up --build -d
+    ```
+    The API will be available at `http://localhost:8000`.
+
+2.  **Access API Documentation (Swagger UI)**:
+    Once the API is running, interactive API documentation (Swagger UI) is available at:
+    `http://localhost:8000/docs`
+    And alternative ReDoc documentation at:
+    `http://localhost:8000/redoc`
+
+### 9.2 Available Endpoints
+
+**Root:**
+- `GET /`: Welcome message.
+
+**Patients (`/patients`):**
+- `GET /`: List all patients with pagination.
+  - Query Parameters: `skip` (int, default 0), `limit` (int, default 10).
+- `GET /{patient_id}`: Get details for a specific patient.
+- `GET /{patient_id}/biometric_summary`: Get the DBT-calculated biometric summary for a specific patient.
+
+**Biometrics (Device Readings & Analytics):**
+- `GET /patients/{patient_id}/device_readings`: List device readings for a specific patient.
+  - Query Parameters: `biometric_type` (str, optional, e.g., 'glucose', 'blood_pressure', 'weight'), `skip` (int, default 0), `limit` (int, default 10).
+- `POST /patients/{patient_id}/device_readings`: Upsert (create or update) a device reading for a patient.
+  - Request Body: JSON object based on `DeviceReadingCreate` schema (including `id` for the reading itself).
+- `DELETE /device_readings/{device_reading_id}`: Delete a specific device reading by its ID.
+- `GET /biometric_analytics`: List all pre-calculated biometric summaries for all patients (from DBT).
+  - Query Parameters: `skip` (int, default 0), `limit` (int, default 10).
+
+### 9.3 Example API Usage (curl)
+
+**List Patients (first 2):**
+```bash
+curl -X GET "http://localhost:8000/patients/?skip=0&limit=2"
+```
+
+**Get Patient "p1" Details:**
+```bash
+curl -X GET "http://localhost:8000/patients/p1"
+```
+
+**Get Biometric Summary for Patient "p1":**
+```bash
+curl -X GET "http://localhost:8000/patients/p1/biometric_summary"
+```
+
+**List Device Readings for Patient "p1" (first 2 glucose readings):**
+```bash
+curl -X GET "http://localhost:8000/patients/p1/device_readings/?biometric_type=glucose&skip=0&limit=2"
+```
+
+**Upsert a Device Reading for Patient "p1":**
+(Replace `reading_id_unique` with a unique ID for the reading)
+```bash
+curl -X POST "http://localhost:8000/patients/p1/device_readings" \
+   -H "Content-Type: application/json" \
+   -d '{
+ "id": "reading_id_unique_007",
+ "patient_id": "p1",
+ "timestamp": "2023-05-10T14:30:00Z",
+ "glucose": 105.5,
+ "systolic_bp": 121,
+ "diastolic_bp": 81,
+ "weight": 70.2
+}'
+```
+*(If the reading ID already exists, it will be updated. Ensure patient_id in body matches path)*
+
+**Delete Device Reading "reading_id_unique_007":**
+```bash
+curl -X DELETE "http://localhost:8000/device_readings/reading_id_unique_007"
+```
+*(Expects a 204 No Content response if successful)*
+
+**List All Biometric Analytics (first 2 summaries):**
+```bash
+curl -X GET "http://localhost:8000/biometric_analytics/?skip=0&limit=2"
+```
+
+## 10. Running Unit Tests (Python)
 
 To run the Python unit tests for the ETL extraction and transformation logic, navigate to the project root directory on your host machine and execute:
 

@@ -80,7 +80,7 @@ services:
       SUPERSET_LOAD_EXAMPLES: "false" # Don't load example data/dashboards
       # For Superset to initialize itself and create tables in its metadata DB
       # These are often needed for the entrypoint script of the official image
-      FLASK_APP: "superset" 
+      FLASK_APP: "superset.app:create_app()" 
       # Superset can use a Postgres DB for its own metadata.
       # For simplicity here, we'll let it use its default SQLite within a volume.
       # To use our existing Postgres instance for Superset's metadata (more robust):

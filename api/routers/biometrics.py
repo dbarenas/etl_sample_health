@@ -111,4 +111,4 @@ def list_all_patient_biometric_analytics(
         offset=skip,
         data=summaries_orm
     )
-```
+

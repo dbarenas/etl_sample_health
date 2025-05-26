@@ -278,4 +278,3 @@ if __name__ == '__main__':
         finally:
             conn_main.close()
             print("\n__main__ test in loading.py finished and connection closed.")
-```

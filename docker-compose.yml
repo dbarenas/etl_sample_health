@@ -14,9 +14,10 @@ services:
       - "5432:5432" # Expose port for potential local connection, not strictly needed for app-to-db comms
     restart: unless-stopped
 
-  app:
+  app: # This is the Python ETL application
     build:
       context: . # Build from the Dockerfile in the current directory
+      dockerfile: Dockerfile # Explicitly point to the root Dockerfile
     container_name: etl_app
     depends_on:
       - db
@@ -35,6 +36,31 @@ services:
       # DBT Environment Variables
       DBT_PROFILES_DIR: "/app/dbt_project" # Tells dbt where to find profiles.yml
       DBT_PROJECT_DIR: "/app/dbt_project" # Explicitly set project dir for dbt commands
+    restart: unless-stopped
+
+  api: # This is the new FastAPI application
+    build:
+      context: . # Use the root project directory as the build context
+      dockerfile: ./api/Dockerfile # Specify the Dockerfile for the API
+    container_name: etl_fastapi_app
+    volumes:
+      - ./api:/app/api # Mount the api code for live reload
+    ports:
+      - "8000:8000" # Expose port 8000 for the API
+    environment:
+      # Pass the same database connection variables as the 'app' service
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: etl_data
+      DB_USER: etl_user
+      DB_PASSWORD: etl_password
+      PYTHONUNBUFFERED: 1
+      # API_DATABASE_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}" # Alternative way, if api/database.py used this directly
+    depends_on:
+      - db # API depends on the database
+      # - app # Optional: if API should only start after ETL has run once.
+              # For now, let's assume API can start independently of ETL completion,
+              # as it might serve data even if ETL is not actively running or if tables exist.
     restart: unless-stopped
 
 volumes:

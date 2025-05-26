@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15-alpine # Using a specific version of postgres with alpine for smaller size
@@ -12,7 +10,6 @@ services:
       - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432" # Expose port for potential local connection, not strictly needed for app-to-db comms
-    restart: unless-stopped
 
   app: # This is the Python ETL application
     build:
@@ -36,7 +33,6 @@ services:
       # DBT Environment Variables
       DBT_PROFILES_DIR: "/app/dbt_project" # Tells dbt where to find profiles.yml
       DBT_PROJECT_DIR: "/app/dbt_project" # Explicitly set project dir for dbt commands
-    restart: unless-stopped
 
   api: # This is the new FastAPI application
     build:

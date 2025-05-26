@@ -2,7 +2,7 @@
 from sqlalchemy import create_engine, Column, Integer, String, Date, Float, DateTime, ForeignKey, Numeric, Index
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
-from sqlalchemy.dialects.postgresql import TIMESTAMP # For PostgreSQL timestamp with timezone
+from sqlalchemy.dialects.postgresql import TIMESTAMPTZ # For TIMESTAMPTZ type
 import os
 from dotenv import load_dotenv
 
@@ -48,7 +48,7 @@ class DeviceReading(Base):
 
     id = Column(String, primary_key=True, index=True) # Match DDL: VARCHAR(255)
     patient_id = Column(String, ForeignKey("patients.id", ondelete="CASCADE"), index=True) # Match DDL
-    timestamp = Column(TIMESTAMP(timezone=True), nullable=False, index=True) # Match DDL
+    timestamp = Column(TIMESTAMPTZ, nullable=False, index=True) # Match DDL
     glucose = Column(Numeric(8, 2)) # Match DDL
     systolic_bp = Column(Integer)
     diastolic_bp = Column(Integer)
@@ -86,8 +86,8 @@ class PatientBiometricSummary(Base):
     min_weight = Column(Numeric(8,2)) 
     max_weight = Column(Numeric(8,2))
     avg_weight = Column(Float)
-    first_reading_timestamp = Column(TIMESTAMP(timezone=True))
-    last_reading_timestamp = Column(TIMESTAMP(timezone=True))
+    first_reading_timestamp = Column(TIMESTAMPTZ)
+    last_reading_timestamp = Column(TIMESTAMPTZ)
 
     # If this table is in a different schema (e.g., 'analytics' created by dbt), specify it:
     # __table_args__ = {'schema': 'analytics'} 
@@ -142,3 +142,4 @@ if __name__ == "__main__":
 
     except Exception as e:
         print(f"Failed to connect or test database: {e}")
+```

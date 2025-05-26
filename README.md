@@ -2,9 +2,7 @@
 
 ## 1. Overview
 
-
 This project implements an ETL (Extract, Transform, Load) pipeline designed to process patient demographic data and medical device readings. It extracts data from JSON and CSV files, transforms it according to defined schemas and validation rules, and then loads the processed data and any identified errors into a PostgreSQL database. The pipeline is built with Python 3.11+, uses Pydantic for data validation, and can be containerized using Docker. A dbt (Data Build Tool) project is included for transforming data within the data warehouse. A FastAPI application provides a RESTful API to interact with the processed data. Finally, Apache Superset is integrated for data visualization.
- 
 
 ## 2. Features Implemented
 
@@ -47,8 +45,19 @@ This project implements an ETL (Extract, Transform, Load) pipeline designed to p
     *   Data visualization and business intelligence platform.
     *   Included as a service in Docker Compose.
     *   Allows connecting to the PostgreSQL database to create charts and dashboards from ETL and dbt-generated tables.
- 
- 
+*   **Asynchronous Pipeline (Python ETL)**:
+    *   The main pipeline (`main.py`) orchestrates extraction, transformation, and loading steps asynchronously using `asyncio` and `run_in_executor` for potentially blocking operations.
+*   **Database Utilities**:
+    *   `etl/db_utils.py` provides helper functions for database connection and DDL execution.
+*   **Configuration**:
+    *   File paths for sample data are defined in `main.py`.
+    *   Database connection parameters are primarily sourced from environment variables (defaults provided in `etl/db_utils.py` and `docker-compose.yml`).
+    *   Pydantic models in `etl/schemas.py` (for ETL) and `api/models.py` (for API) centralize data validation rules.
+    *   DBT project configuration in `dbt_project/dbt_project.yml` and `dbt_project/profiles.yml`.
+*   **Dockerization**:
+    *   `Dockerfile` (root) for the Python ETL and dbt CLI application.
+    *   `api/Dockerfile` for the FastAPI application.
+    *   `docker-compose.yml` for easy multi-container setup (ETL app, API app, PostgreSQL database, Superset).
 *   **Unit Tests (Python)**:
     *   Comprehensive unit tests for extraction, transformation, and mocked loading modules (`tests/`).
 
@@ -98,7 +107,6 @@ This project implements an ETL (Extract, Transform, Load) pipeline designed to p
     └── test_loading.py     # Tests for Python loading logic (mocked DB)
 ```
 *(Docker volumes like `pgdata` and `superset_data` are defined in `docker-compose.yml` for data persistence.)*
- 
 
 ## 4. Database Schema
 
@@ -162,13 +170,12 @@ DBT models (e.g., `patient_biometric_summary`) will be created in the same datab
     ```bash
     pip install -r requirements.txt
     ```
+    *(The `requirements.txt` file includes `pydantic[email]` to enable robust email validation in the API.)*
 
 ## 6. How to Run the Pipeline & Services
 
 ### Directly with Python (ETL Only)
-
 *(Note: This runs only the Python ETL part. It requires a PostgreSQL instance to be running and accessible, with connection details matching environment variables or defaults in `etl/db_utils.py`. For the full system including API, dbt, and Superset, using Docker Compose is recommended.)*
- 
 
 1.  Ensure you have completed the setup instructions.
 2.  Set environment variables for your database if they differ from defaults (e.g., `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`).

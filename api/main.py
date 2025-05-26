@@ -43,3 +43,4 @@ async def read_root():
 # To run this app (from the root directory, assuming uvicorn is installed):
 # uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 # This command will be part of the Dockerfile for the api service.
+```

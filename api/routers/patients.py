@@ -67,3 +67,5 @@ def get_patient_biometric_summary_for_patient(patient_id: str, db: Session = Dep
             raise HTTPException(status_code=404, detail="Patient not found")
         raise HTTPException(status_code=404, detail="Biometric summary not found for this patient. DBT models may need to be run or patient may have no readings.")
     return summary
+
+```

@@ -1,0 +1,16 @@
+# dbt_project/profiles.yml
+
+patient_etl_profile: # This is the profile name referenced in dbt_project.yml
+  target: dev # Default target
+  outputs:
+    dev:
+      type: postgres
+      host: db # This is the service name of our PostgreSQL container in docker-compose.yml
+      user: etl_user # From docker-compose.yml environment: POSTGRES_USER
+      password: etl_password # From docker-compose.yml environment: POSTGRES_PASSWORD
+      port: 5432
+      dbname: etl_data # From docker-compose.yml environment: POSTGRES_DB
+      schema: public # Default schema where dbt will build models, unless overridden in dbt_project.yml or models
+      threads: 1 # Number of concurrent connections dbt can use
+      keepalives_idle: 0 # disables TCP keepalives
+      connect_timeout: 10

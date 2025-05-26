@@ -2,7 +2,9 @@
 
 ## 1. Overview
 
-This project implements an ETL (Extract, Transform, Load) pipeline designed to process patient demographic data and medical device readings. It extracts data from JSON and CSV files, transforms it according to defined schemas and validation rules, and then loads the processed data and any identified errors into a PostgreSQL database. The pipeline is built with Python 3.11+, uses Pydantic for data validation, and can be containerized using Docker. A dbt (Data Build Tool) project is included for transforming data within the data warehouse. Finally, a FastAPI application provides a RESTful API to interact with the processed data.
+
+This project implements an ETL (Extract, Transform, Load) pipeline designed to process patient demographic data and medical device readings. It extracts data from JSON and CSV files, transforms it according to defined schemas and validation rules, and then loads the processed data and any identified errors into a PostgreSQL database. The pipeline is built with Python 3.11+, uses Pydantic for data validation, and can be containerized using Docker. A dbt (Data Build Tool) project is included for transforming data within the data warehouse. A FastAPI application provides a RESTful API to interact with the processed data. Finally, Apache Superset is integrated for data visualization.
+ 
 
 ## 2. Features Implemented
 
@@ -41,19 +43,12 @@ This project implements an ETL (Extract, Transform, Load) pipeline designed to p
     *   Uses SQLAlchemy ORM for database interaction and Pydantic for request/response validation.
     *   Includes CRUD-like operations for device readings (upsert, delete).
     *   Offers paginated responses for lists of resources.
-*   **Asynchronous Pipeline (Python ETL)**:
-    *   The main pipeline (`main.py`) orchestrates extraction, transformation, and loading steps asynchronously using `asyncio` and `run_in_executor` for potentially blocking operations.
-*   **Database Utilities**:
-    *   `etl/db_utils.py` provides helper functions for database connection and DDL execution.
-*   **Configuration**:
-    *   File paths for sample data are defined in `main.py`.
-    *   Database connection parameters are primarily sourced from environment variables (defaults provided in `etl/db_utils.py` and `docker-compose.yml`).
-    *   Pydantic models in `etl/schemas.py` (for ETL) and `api/models.py` (for API) centralize data validation rules.
-    *   DBT project configuration in `dbt_project/dbt_project.yml` and `dbt_project/profiles.yml`.
-*   **Dockerization**:
-    *   `Dockerfile` (root) for the Python ETL and dbt CLI application.
-    *   `api/Dockerfile` for the FastAPI application.
-    *   `docker-compose.yml` for easy multi-container setup (ETL app, API app, PostgreSQL database).
+*   **Apache Superset Integration**:
+    *   Data visualization and business intelligence platform.
+    *   Included as a service in Docker Compose.
+    *   Allows connecting to the PostgreSQL database to create charts and dashboards from ETL and dbt-generated tables.
+ 
+ 
 *   **Unit Tests (Python)**:
     *   Comprehensive unit tests for extraction, transformation, and mocked loading modules (`tests/`).
 
@@ -62,7 +57,7 @@ This project implements an ETL (Extract, Transform, Load) pipeline designed to p
 ```
 .
 ├── Dockerfile              # For building the Python ETL & DBT CLI container
-├── docker-compose.yml      # For Docker Compose setup (ETL app, API app & database)
+├── docker-compose.yml      # For Docker Compose setup (ETL, API, DB, Superset)
 ├── main.py                 # Main script to run the Python ETL pipeline
 ├── requirements.txt        # Python dependencies for ETL, DBT, and API
 ├── README.md               # This file
@@ -72,7 +67,7 @@ This project implements an ETL (Extract, Transform, Load) pipeline designed to p
 │   ├── database.py         # SQLAlchemy setup and ORM models for API
 │   ├── models.py           # Pydantic schemas for API requests/responses
 │   ├── crud.py             # CRUD operations for the API
-│   ├── dependencies.py     # API dependencies (e.g., get_db session) - (currently empty but structured)
+│   ├── dependencies.py     # API dependencies (e.g., get_db session)
 │   └── routers/            # API endpoint routers
 │       ├── __init__.py
 │       ├── patients.py     # Patient and patient-specific biometric summary routes
@@ -102,6 +97,8 @@ This project implements an ETL (Extract, Transform, Load) pipeline designed to p
     ├── test_transformation.py
     └── test_loading.py     # Tests for Python loading logic (mocked DB)
 ```
+*(Docker volumes like `pgdata` and `superset_data` are defined in `docker-compose.yml` for data persistence.)*
+ 
 
 ## 4. Database Schema
 
@@ -169,7 +166,9 @@ DBT models (e.g., `patient_biometric_summary`) will be created in the same datab
 ## 6. How to Run the Pipeline & Services
 
 ### Directly with Python (ETL Only)
-*(Note: This runs only the Python ETL part. It requires a PostgreSQL instance to be running and accessible, with connection details matching environment variables or defaults in `etl/db_utils.py`. For the full system including API and dbt, using Docker Compose is recommended.)*
+
+*(Note: This runs only the Python ETL part. It requires a PostgreSQL instance to be running and accessible, with connection details matching environment variables or defaults in `etl/db_utils.py`. For the full system including API, dbt, and Superset, using Docker Compose is recommended.)*
+ 
 
 1.  Ensure you have completed the setup instructions.
 2.  Set environment variables for your database if they differ from defaults (e.g., `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`).
@@ -177,11 +176,11 @@ DBT models (e.g., `patient_biometric_summary`) will be created in the same datab
     ```bash
     python main.py
     ```
-4.  The script will execute the Python ETL pipeline. (DBT models are not run by this script. See Section 8 for running dbt.)
+4.  The script will execute the Python ETL pipeline. (DBT models and other services are not run by this script. See subsequent sections.)
 
 ### Using Docker Compose (Recommended for Full System)
 
-This project includes a `docker-compose.yml` file that sets up the Python ETL application (`app` service), the FastAPI application (`api` service), and a PostgreSQL database (`db` service). This is the recommended way to run the full application locally.
+This project includes a `docker-compose.yml` file that sets up the Python ETL application (`app` service), the FastAPI application (`api` service), an Apache Superset instance (`superset` service), and a PostgreSQL database (`db` service). This is the recommended way to run the full application locally.
 
 1.  **Ensure Docker Compose is installed.** (It's usually included with Docker Desktop).
 2.  **Build and start all services**:
@@ -194,17 +193,19 @@ This project includes a `docker-compose.yml` file that sets up the Python ETL ap
     *   Start the PostgreSQL database (`db` service).
     *   Start the Python ETL application (`app` service), which will run `python main.py` to load initial data.
     *   Start the FastAPI application (`api` service). The API will be available at `http://localhost:8000`.
+    *   Start the Apache Superset application (`superset` service). Superset will be available at `http://localhost:8088`.
 
 3.  **To stop the services**:
     ```bash
     docker-compose down
     ```
-    This will stop and remove the containers. The PostgreSQL data will persist in a Docker volume (`pgdata`) unless the volume is explicitly removed.
+    This will stop and remove the containers. The PostgreSQL data will persist in a Docker volume (`pgdata`) and Superset data in `superset_data` unless these volumes are explicitly removed.
 
 **Note on Service Interaction**:
 - The Python ETL (`app` service) loads data into the PostgreSQL `db` service.
 - The dbt CLI (run within the `app` service container) transforms data within the `db` service.
 - The FastAPI application (`api` service) reads from and writes to the `db` service.
+- Apache Superset (`superset` service) connects to the `db` service to visualize data.
 
 ## 7. Example of Pipeline Execution (Python ETL)
 
@@ -316,13 +317,9 @@ The project includes a RESTful API built with FastAPI, located in the `api/` dir
 
 ### 9.1 Running the API
 
-The API service is managed by Docker Compose.
+The API service is managed by Docker Compose and starts automatically with `docker-compose up`.
 
-1.  **Start all services (including the API)**:
-    If not already running from Section 6:
-    ```bash
-    docker-compose up --build -d
-    ```
+1.  **Ensure all services are running** (as per Section 6).
     The API will be available at `http://localhost:8000`.
 
 2.  **Access API Documentation (Swagger UI)**:
@@ -363,45 +360,67 @@ curl -X GET "http://localhost:8000/patients/?skip=0&limit=2"
 curl -X GET "http://localhost:8000/patients/p1"
 ```
 
-**Get Biometric Summary for Patient "p1":**
-```bash
-curl -X GET "http://localhost:8000/patients/p1/biometric_summary"
-```
+*(See Section 9.2 for more endpoint examples)*
 
-**List Device Readings for Patient "p1" (first 2 glucose readings):**
-```bash
-curl -X GET "http://localhost:8000/patients/p1/device_readings/?biometric_type=glucose&skip=0&limit=2"
-```
+## 10. Apache Superset Integration
 
-**Upsert a Device Reading for Patient "p1":**
-(Replace `reading_id_unique` with a unique ID for the reading)
-```bash
-curl -X POST "http://localhost:8000/patients/p1/device_readings" \
-   -H "Content-Type: application/json" \
-   -d '{
- "id": "reading_id_unique_007",
- "patient_id": "p1",
- "timestamp": "2023-05-10T14:30:00Z",
- "glucose": 105.5,
- "systolic_bp": 121,
- "diastolic_bp": 81,
- "weight": 70.2
-}'
-```
-*(If the reading ID already exists, it will be updated. Ensure patient_id in body matches path)*
+Apache Superset is included in the Docker Compose setup for data visualization and business intelligence.
 
-**Delete Device Reading "reading_id_unique_007":**
-```bash
-curl -X DELETE "http://localhost:8000/device_readings/reading_id_unique_007"
-```
-*(Expects a 204 No Content response if successful)*
+### 10.1 Running Superset
 
-**List All Biometric Analytics (first 2 summaries):**
-```bash
-curl -X GET "http://localhost:8000/biometric_analytics/?skip=0&limit=2"
-```
+Superset is managed as a service within `docker-compose.yml` and starts automatically with `docker-compose up`.
 
-## 10. Running Unit Tests (Python)
+1.  **Ensure all services are running** (as per Section 6).
+    Superset will be available at `http://localhost:8088`. It may take a minute or two for Superset to initialize fully on its first run.
+
+2.  **Login**:
+    - Username: `admin`
+    - Password: `admin`
+    (As configured by environment variables in `docker-compose.yml`. Change these for a production setup.)
+
+### 10.2 Connecting Superset to PostgreSQL
+
+After logging into Superset for the first time, you need to connect it to the project's PostgreSQL database (`etl_data`):
+
+1.  **Navigate to Data Sources**: In the Superset UI, go to `Data` -> `Databases` (or `+` icon -> `Data` -> `Connect database`).
+2.  **Configure the Connection**:
+    - **Database Name**: Choose a descriptive name (e.g., `ETL Patient Data`).
+    - **SQLAlchemy URI**: Use the following URI to connect to the PostgreSQL service within the Docker network:
+      ```
+      postgresql://etl_user:etl_password@db:5432/etl_data
+      ```
+      (Where `db` is the service name of your PostgreSQL container from `docker-compose.yml`, and user/password/dbname match its configuration).
+    - **Test Connection**: Click "Test Connection" to ensure Superset can reach the database.
+    - **Save**: If the test is successful, save the database configuration.
+
+### 10.3 Creating Datasets in Superset
+
+Once the database is connected, you can create datasets from the tables:
+
+1.  **Navigate to Datasets**: Go to `Data` -> `Datasets` (or `+` icon -> `Data` -> `Create dataset`).
+2.  **Choose Schema and Table**:
+    - **Database**: Select the database connection you just created (e.g., `ETL Patient Data`).
+    - **Schema**: Select `public` (or the schema where your tables reside).
+    - **Table**: Choose one of `patients`, `device_readings`, or `patient_biometric_summary`.
+3.  **Save** the dataset. Repeat for other tables you want to visualize.
+
+### 10.4 Creating Charts and Dashboards (Basic Guidance)
+
+With datasets defined, you can start creating charts:
+
+1.  **Navigate to Charts**: Go to `Charts` -> `+ Chart`.
+2.  **Choose a Dataset and Chart Type**:
+    - Select one of your newly created datasets.
+    - Choose a visualization type (e.g., Bar Chart, Time Series, Table View).
+3.  **Configure the Chart**:
+    - **Time series data (from `device_readings`)**: Use `timestamp` for the Time column, and metrics like `glucose`, `systolic_bp`, etc.
+    - **Aggregated data (from `patient_biometric_summary`)**: You can create bar charts for average glucose per patient, or tables showing min/max values.
+    - **Patient demographics (from `patients`)**: Create charts showing distribution by gender, or tables of patient lists.
+4.  **Save** the chart. You can then add charts to dashboards.
+
+This provides a starting point for exploring and visualizing your data within Superset.
+
+## 11. Running Unit Tests (Python)
 
 To run the Python unit tests for the ETL extraction and transformation logic, navigate to the project root directory on your host machine and execute:
 

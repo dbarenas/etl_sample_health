@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine # Using a specific version of postgres with alpine for smaller size
+    container_name: etl_postgres_db
+    environment:
+      POSTGRES_USER: etl_user
+      POSTGRES_PASSWORD: etl_password
+      POSTGRES_DB: etl_data
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432" # Expose port for potential local connection, not strictly needed for app-to-db comms
+    restart: unless-stopped
+
+  app: # This is the Python ETL application
+    build:
+      context: . # Build from the Dockerfile in the current directory
+      dockerfile: Dockerfile # Explicitly point to the root Dockerfile
+    container_name: etl_app
+    depends_on:
+      - db
+    volumes:
+      - .:/app # Mount current directory to /app in container
+      - ./dbt_project:/app/dbt_project # Mount the dbt_project directory
+    environment:
+      # Environment variables for database connection used by Python ETL
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: etl_data
+      DB_USER: etl_user
+      DB_PASSWORD: etl_password
+      # PYTHONUNBUFFERED is good for seeing logs immediately from Python within Docker
+      PYTHONUNBUFFERED: 1
+      # DBT Environment Variables
+      DBT_PROFILES_DIR: "/app/dbt_project" # Tells dbt where to find profiles.yml
+      DBT_PROJECT_DIR: "/app/dbt_project" # Explicitly set project dir for dbt commands
+    restart: unless-stopped
+
+  api: # This is the new FastAPI application
+    build:
+      context: . # Use the root project directory as the build context
+      dockerfile: ./api/Dockerfile # Specify the Dockerfile for the API
+    container_name: etl_fastapi_app
+    volumes:
+      - ./api:/app/api # Mount the api code for live reload
+    ports:
+      - "8000:8000" # Expose port 8000 for the API
+    environment:
+      # Pass the same database connection variables as the 'app' service
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: etl_data
+      DB_USER: etl_user
+      DB_PASSWORD: etl_password
+      PYTHONUNBUFFERED: 1
+      # API_DATABASE_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}" # Alternative way, if api/database.py used this directly
+    depends_on:
+      - db # API depends on the database
+      # - app # Optional: if API should only start after ETL has run once.
+              # For now, let's assume API can start independently of ETL completion,
+              # as it might serve data even if ETL is not actively running or if tables exist.
+    restart: unless-stopped
+
+  superset:
+    image: apache/superset:3.1.1 # Using a specific recent version
+    container_name: etl_superset
+    ports:
+      - "8088:8088"
+    environment:
+      # Generate a strong, random secret key for production.
+      # For this example, a placeholder is used.
+      SUPERSET_SECRET_KEY: "this_is_a_default_secret_key_for_dev_only_CHANGE_ME" 
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: admin
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_FIRST_NAME: Admin
+      ADMIN_LAST_NAME: User
+      SUPERSET_LOAD_EXAMPLES: "false" # Don't load example data/dashboards
+      # For Superset to initialize itself and create tables in its metadata DB
+      # These are often needed for the entrypoint script of the official image
+      FLASK_APP: "superset" 
+      # Superset can use a Postgres DB for its own metadata.
+      # For simplicity here, we'll let it use its default SQLite within a volume.
+      # To use our existing Postgres instance for Superset's metadata (more robust):
+      # SQLALCHEMY_DATABASE_URI: "postgresql://superset_user:superset_password@db:5432/superset_metadata_db"
+      # This would require creating another user/db in Postgres or using existing one carefully.
+      # For now, sticking to simpler volume-based SQLite for Superset's own state.
+    volumes:
+      - superset_data:/app/superset_home # Persist Superset's application data (SQLite DB, configs)
+                                        # Path may vary based on image version; check Superset Docker image docs.
+                                        # For official images, often /var/lib/superset or /home/superset or /app/superset_home
+    depends_on:
+      - db # Superset needs the database to be up to connect to it as a data source.
+    restart: unless-stopped
+
+volumes:
+  pgdata: # Defines the named volume for PostgreSQL data persistence
+  superset_data: # New volume for Superset

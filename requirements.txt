@@ -1,0 +1,7 @@
+pydantic
+psycopg2-binary
+dbt-postgres~=1.7.0
+fastapi
+uvicorn[standard]
+SQLAlchemy
+python-dotenv

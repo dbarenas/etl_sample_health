@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y libpq-dev gcc && rm -rf /var/lib/apt/li
 COPY ../requirements.txt /app/requirements.txt
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt email-validator
 
 # Copy the rest of the API application code into the container
 # It copies the content of the 'api' directory from the host 

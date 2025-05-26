@@ -154,14 +154,12 @@ if __name__ == '__main__':
     #     print(f"Patient: {p.id}, Name: {p.name}")
 
     # Test device readings for a known patient (e.g., 'p1' if created by ETL)
-    # print("
---- Testing device readings for patient 'p1' ---")
+    # print("--- Testing device readings for patient 'p1' ---")
     # patient_p1_readings = get_device_readings_for_patient(db_session, patient_id='p1', limit=5)
     # for r in patient_p1_readings:
     #     print(f"Reading ID: {r.id}, Timestamp: {r.timestamp}, Glucose: {r.glucose}")
     
-    # print("
---- Testing upsert_device_reading ---")
+    # print("--- Testing upsert_device_reading ---")
     # from .models import DeviceReadingCreate
     # from datetime import datetime
     # new_reading_data = DeviceReadingCreate(
@@ -200,8 +198,7 @@ if __name__ == '__main__':
     #     print(f"Error during upsert test: {e}")
 
 
-    # print("
---- Testing delete_device_reading ---")
+    # print("--- Testing delete_device_reading ---")
     # deleted = delete_device_reading(db_session, "test_reading_001")
     # print(f"Deletion status for 'test_reading_001': {deleted}")
     # assert deleted
@@ -210,8 +207,7 @@ if __name__ == '__main__':
     # print("Deletion verified.")
 
 
-    # print("
---- Testing biometric summaries (assuming DBT has run) ---")
+    # print("--- Testing biometric summaries (assuming DBT has run) ---")
     # summaries = get_all_biometric_summaries(db_session, limit=5)
     # if summaries:
     #     for summary in summaries:
@@ -220,4 +216,4 @@ if __name__ == '__main__':
     #     print("No biometric summaries found. Ensure DBT models have been run.")
 
     # db_session.close()
-```
+    pass  # Added pass statement to avoid indentation error

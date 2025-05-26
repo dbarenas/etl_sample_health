@@ -116,4 +116,3 @@ class PaginatedBiometricSummaryResponse(PaginatedResponse):
 # Not strictly needed here as models are in order, but good practice if structure changes.
 # PatientResponse.update_forward_refs()
 # DeviceReadingResponse.update_forward_refs()
-```
